@@ -1,4 +1,3 @@
-# @title Установка модуля УИИ
 from PIL import Image
 from pathlib import Path
 from tensorflow.keras.preprocessing import image
@@ -25,7 +24,7 @@ random.seed(seed_value)
 np.random.seed(seed_value)
 tf.random.set_seed(seed_value)
 
-
+# Прописывание цветов для будущего использоания в терминале
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -60,6 +59,7 @@ class AccuracyCallback(tf.keras.callbacks.Callback):
     def on_epoch_begin(self, epoch, logs=None):
         self.start_time = time.time()
 
+    # Вывод информации по окочании 1 эпохи
     def on_epoch_end(self, epoch, logs=None):
         self.train_acc.append(logs['accuracy'])
         self.val_acc.append(logs['val_accuracy'])
@@ -93,7 +93,7 @@ class AccuracyCallback(tf.keras.callbacks.Callback):
                     50) + f'Точность на проверочной выборке: {bcolors.OKBLUE}{round(self.val_acc[i] * 100, 1)}%{bcolors.ENDC}')
         self.plot_graph()
 
-
+# Создание базы изображений для тренировки и проверки нейронки
 class TerraDataset:
     bases = {
         'Молочная_продукция': {
@@ -134,18 +134,15 @@ class TerraDataset:
     }
 
     def __init__(self, name):
-        '''
-        parameters:
-            name - название датасета
-        '''
+        # parameters:
+        #     name - название датасета
+
         self.base = self.bases[name]
         self.sets = None
         self.classes = None
 
+    # Функция загрузки датасета
     def load(self):
-        '''
-        функция загрузки датасета
-        '''
 
         print(f'{bcolors.BOLD}Загрузка датасета{bcolors.ENDC}', end=' ')
 
@@ -166,17 +163,15 @@ class TerraDataset:
         print(f'    {self.base["info"]}')
         return self.base['task_type']
 
+    # Функция визуализации примеров
     def samples(self):
-        '''
-        Функция визуализации примеров
-        '''
 
         # Визуализация датасета изображений для задачи классификации
         if self.base['task_type'] == 'img_classification':
             # Получение списка классов (названия папок в директории)
             self.classes = sorted(os.listdir(self.base['dir_name']))
 
-            # Построение полотная визуализации
+            # Построение поля визуализации
             f, ax = plt.subplots(len(self.classes), 5, figsize=(24, len(self.classes) * 4))
             for i, class_ in enumerate(self.classes):
                 # Выбор случайного изображения
@@ -194,10 +189,9 @@ class TerraDataset:
                     ax[i, j].set_title(class_)
             plt.show()
 
+    # Функция создания выборок
     def create_sets(self):
-        '''
-        Функция создания выборок
-        '''
+
         x_train = []
         y_train = []
         x_test = []
@@ -226,8 +220,7 @@ class TerraDataset:
 
                     # Загрузка очередного изображения
                     sample = np.array(image.load_img(os.path.join(
-                        self.base['dir_name'],
-                        d,
+                        self.base['dir_name'], d,
                         files[i]), target_size=self.base['size']))
 
                     # Добавление элемента в тестовую или проверочную выборку
@@ -240,14 +233,12 @@ class TerraDataset:
             self.sets = (np.array(x_train) / 255., np.array(y_train)), (np.array(x_test) / 255., np.array(y_test))
 
             # Вывод финальной информации
-            print(f'{bcolors.OKGREEN}Ok{bcolors.ENDC}')
-            print()
+            print(f'{bcolors.OKGREEN}Ok{bcolors.ENDC}\n')
             print(f'Размер созданных выборок:')
-            print(f'  Обучающая выборка: {self.sets[0][0].shape}')
-            print(f'  Метки обучающей выборки: {self.sets[0][1].shape}')
-            print(f'  Проверочная выборка: {self.sets[1][0].shape}')
-            print(f'  Метки проверочной выборки: {self.sets[1][1].shape}')
-            print()
+            print(f'    Обучающая выборка: {self.sets[0][0].shape}')
+            print(f'    Метки обучающей выборки: {self.sets[0][1].shape}')
+            print(f'    Проверочная выборка: {self.sets[1][0].shape}')
+            print(f'    Метки проверочной выборки: {self.sets[1][1].shape}\n')
             print(f'Распределение по классам:')
             f, ax = plt.subplots(1, 2, figsize=(16, 5))
             ax[0].bar(self.classes, np.array(counts) * 0.9)
@@ -263,45 +254,43 @@ class TerraModel:
         self.task_type = task_type
         self.trds = trds
 
+    # Функция создания слоя
     @staticmethod
     def create_layer(params):
-        '''
-           Функция создания слоя
-        '''
         activation = 'relu'
         params = params.split('-')
 
         # Добавление входного слоя
-        if params[0].lower() == 'входной':
+        if params[0].lower() == 'input':
             return Input(shape=eval(params[1]))
 
         # Добавление полносвязного слоя
-        if params[0].lower() == 'полносвязный':
+        if params[0].lower() == 'fullconn':
             if len(params) > 2:
                 activation = params[2]
             return Dense(eval(params[1]), activation=activation)
 
         # Добавление выравнивающего слоя
-        if params[0].lower() == 'выравнивающий':
+        if params[0].lower() == 'leveling':
             return Flatten()
 
         # Добавление сверточного слоя (Conv2D)
-        if params[0].lower() == 'сверточный2д':
+        if params[0].lower() == 'conv2d':
             if len(params) > 3:
                 activation = params[3]
             return Conv2D(eval(params[1]), eval(params[2]), activation=activation, padding='same')
 
+    # Функция создания нейронной сети
     def create_model(self, layers):
-        '''
-        Функция создания нейронной сети
-        parameters:
-            layers - слои (текстом)
-        '''
+
+        # parameters:
+        #    layers - слои (текстом)
+
         if self.task_type == 'img_classification':
             layers += '-softmax'
         layers = layers.split()
         # Создание входного слоя
-        inp = self.create_layer(f'входной-{self.trds.sets[0][0].shape[1:]}')
+        inp = self.create_layer(f'input-{self.trds.sets[0][0].shape[1:]}')
 
         # Создание первого слоя
         x = self.create_layer(layers[0])(inp)
@@ -311,12 +300,10 @@ class TerraModel:
             x = self.create_layer(layer)(x)
         self.model = Model(inp, x)
 
+    # Функция обучения нейронной сети
     def train_model(self, epochs, use_callback=True):
-        '''
-        Функция обучения нейронной сети
-        parameters:
-            epochs - количество эпох
-        '''
+        # parameters:
+        #     epochs - количество эпох
 
         # Обучение модели классификации изображений
         if self.task_type == 'img_classification':
@@ -326,17 +313,16 @@ class TerraModel:
             if use_callback:
                 callbacks = [accuracy_callback]
             history = self.model.fit(self.trds.sets[0][0], self.trds.sets[0][1],
-                                     batch_size=self.trds.sets[0][0].shape[0] // 25,
+                                     batch_size=self.trds.sets[0][0].shape[0] // 100,
                                      validation_data=(self.trds.sets[1][0], self.trds.sets[1][1]),
                                      epochs=epochs,
                                      callbacks=callbacks,
                                      verbose=0)
             return history
 
+    # Функция тестирования модели
     def test_model(self):
-        '''
-        Функция тестирования модели
-        '''
+
         # Тестирование модели классификации изображений
         if self.task_type == 'img_classification':
             for i in range(10):
@@ -344,12 +330,11 @@ class TerraModel:
                 sample = self.trds.sets[1][0][number]
                 print('Тестовое изображение:')
                 plt.imshow(sample)  # Выводим изображение из тестового набора с заданным индексом
-                plt.axis('off')  # Отключаем оси
+                plt.axis('off')  # Убираем оси
                 plt.show()
                 pred = self.model.predict(sample[None, ...])[0]
                 max_idx = np.argmax(pred)
-                print()
-                print('Результат предсказания модели:')
+                print('\nРезультат предсказания модели:')
                 for i in range(len(self.trds.classes)):
                     if i == max_idx:
                         print(bcolors.BOLD, end='')
@@ -362,9 +347,8 @@ class TerraModel:
                 else:
                     print(bcolors.FAIL, end='')
                 print(self.trds.classes[self.trds.sets[1][1][number]], end=f'{bcolors.ENDC}\n')
-                print('---------------------------')
-                print()
-                print()
+                print('---------------------------\n\n')
+
 
 
 class TerraIntensive:
@@ -397,8 +381,7 @@ class TerraIntensive:
 
     def train_model_average(self, layers, cnt=10):
         if self.task_type == 'img_classification':
-            print(f'{bcolors.BOLD}Определение среднего показателя точности модели на {cnt} запусках{bcolors.ENDC}')
-            print()
+            print(f'{bcolors.BOLD}Определение среднего показателя точности модели на {cnt} запусках{bcolors.ENDC}\n')
             average_accuracy = []
             average_val_accuracy = []
             times = []
@@ -416,19 +399,18 @@ class TerraIntensive:
                 gc.collect()
 
             ipd.clear_output(wait=True)
-            print(f'{bcolors.BOLD}Определение среднего показателя точности модели на {cnt} запусках{bcolors.ENDC}')
-            print()
+            print(f'{bcolors.BOLD}Определение среднего показателя точности модели на {cnt} запусках{bcolors.ENDC}\n')
+
             argmax_idx = np.argmax(average_val_accuracy)
             for i in range(cnt):
                 if i == argmax_idx:
                     print('\33[102m' + f'Запуск {i + 1}'.ljust(10) + f'Время обучения: {times[i]}c'.ljust(
                         25) + f'Точность на обучающей выборке: {round(average_accuracy[i] * 100, 1)}%'.ljust(
-                        41) + f'Точность на проверочной выборке: {round(average_val_accuracy[i] * 100, 1)}%' + '\033[0m')
+                        41) + f'Точность на проверочной выборке: {round(average_val_accuracy[i] * 100, 1)}%' + '\033[0m\n')
                 else:
-                    print(f'Запуск {i + 1}'.ljust(10) + f'Время обучения: {times[i]}c'.ljust(
+                     '''print(f'Запуск {i + 1}'.ljust(10) + f'Время обучения: {times[i]}c'.ljust(
                         25) + f'Точность на обучающей выборке: {bcolors.OKBLUE}{round(average_accuracy[i] * 100, 1)}%{bcolors.ENDC}'.ljust(
-                        50) + f'Точность на проверочной выборке: {bcolors.OKBLUE}{round(average_val_accuracy[i] * 100, 1)}%{bcolors.ENDC}')
-            print()
+                        50) + f'Точность на проверочной выборке: {bcolors.OKBLUE}{round(average_val_accuracy[i] * 100, 1)}%{bcolors.ENDC}')'''
             print(
                 f'{bcolors.BOLD}Средняя точность на обучающей выборке: {bcolors.ENDC}{round(np.mean(average_accuracy[i]) * 100, 1)}%')
             print(
