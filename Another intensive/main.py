@@ -4,10 +4,11 @@ import pandas as pd
 from keras import backend as K
 from tabulate import tabulate
 from sklearn.model_selection import train_test_split
+import tensorflow
 from tensorflow.python.keras.models import Sequential
 from tensorflow.python.keras.layers import Dense, Conv2D, MaxPooling2D, AveragePooling2D, GlobalAveragePooling2D, \
     GlobalMaxPooling2D, UpSampling2D, Conv2DTranspose, Flatten
-from tensorflow.python.keras.optimizer_v2.nadam import Nadam  # был optimizer import Adam
+from tensorflow.python.keras.optimizers import Adam  # был optimizer import Adam
 from tensorflow.python.keras.utils.np_utils import to_categorical
 import numpy as np
 import seaborn as sns
